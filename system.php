@@ -36,7 +36,7 @@ playerSession('unlock',$db,'','');
 <?php 
 if (isset($_POST['syscmd'])){
 	switch ($_POST['syscmd']) {
-	
+
 	case 'reboot':
 	
 			if ($_SESSION['w_lock'] != 1 && $_SESSION['w_queue'] == '') {
@@ -72,7 +72,7 @@ if (isset($_POST['syscmd'])){
 			echo "background worker busy";
 			}
 		break;
-		
+
 	case 'mpdrestart':
 	
 			if ($_SESSION['w_lock'] != 1 && $_SESSION['w_queue'] == '') {

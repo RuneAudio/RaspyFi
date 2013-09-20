@@ -380,9 +380,11 @@ function cfgdb_connect($dbpath) {
  }
 }
 
-function cfgdb_read($table,$dbh,$param) {
+function cfgdb_read($table,$dbh,$param,$id) {
 	if(!isset($param)) {
 	$querystr = 'SELECT * from '.$table;
+	} else if (isset($id)) {
+	$querystr = "SELECT * from ".$table." WHERE id='".$id."'";
 	} else if ($param == 'mpdconf'){
 	$querystr = "SELECT param,value_player FROM cfg_mpd WHERE value_player!=''";
 	} else if ($param == 'mpdconfdefault') {
@@ -391,7 +393,7 @@ function cfgdb_read($table,$dbh,$param) {
 	$querystr = 'SELECT value from '.$table.' WHERE param="'.$param.'"';
 	}
 //debug
-// echo "<br>".$querystr."<br>";
+//echo "<br>".$querystr."<br>";
 $result = sdbquery($querystr,$dbh);
 return $result;
 }
@@ -664,7 +666,22 @@ function debug_footer($db) {
 		debug_output();
 		debug(1);
 		echo "\n";
+		echo "###### System info ######\n";
+		echo  file_get_contents('/proc/version');
+		echo "\n";
+		echo  "system load:\t".file_get_contents('/proc/loadavg');
+		echo "\n";
+		echo "HW platform:\t".$_SESSION['hwplatform']." (".$_SESSION['hwplatformid'].")\n";
+		echo "\n";
+		echo "playerID:\t".$_SESSION['playerid']."\n";
+		echo "\n";
+		echo "\n";
 		echo "###### Audio backend ######\n";
+		echo  file_get_contents('/proc/asound/version');
+		echo "\n";
+		echo "Card list: (/proc/asound/cards)\n";
+		echo "--------------------------------------------------\n";
+		echo  file_get_contents('/proc/asound/cards');
 		echo "\n";
 		echo "ALSA interface #0: (/proc/asound/card0/pcm0p/info)\n";
 		echo "--------------------------------------------------\n";
@@ -692,6 +709,7 @@ function debug_footer($db) {
 		echo $streaminfo;
 		}
 		echo "\n";
+		echo "\n";
 		echo "###### Kernel optimization parameters ######\n";
 		echo "\n";
 		echo "hardware platform:\t".$_SESSION['hwplatform']."\n";
@@ -704,9 +722,11 @@ function debug_footer($db) {
 		echo  "/proc/sys/kernel/sched_rt_period_us:\t".file_get_contents('/proc/sys/kernel/sched_rt_period_us');
 		echo  "/proc/sys/kernel/sched_rt_runtime_us:\t".file_get_contents('/proc/sys/kernel/sched_rt_runtime_us');
 		echo "\n";
+		echo "\n";
 		echo "###### Filesystem mounts ######\n";
 		echo "\n";
 		echo  file_get_contents('/proc/mounts');
+		echo "\n";
 		echo "\n";
 		echo "###### mpd.conf ######\n";
 		echo "\n";
@@ -715,16 +735,19 @@ function debug_footer($db) {
 		}
 		if ($_SESSION['debug'] > 1) {
 		echo "\n";
+		echo "\n";
 		echo "###### PHP backend ######\n";
 		echo "\n";
 		echo "php version:\t".phpVer()."\n";
 		echo "debug level:\t".$_SESSION['debug']."\n";
+		echo "\n";
 		echo "\n";
 		echo "###### SESSION ######\n";
 		echo "\n";
 		echo "STATUS:\t\t".session_status()."\n";
 		echo "ID:\t\t".session_id()."\n"; 
 		echo "SAVE PATH:\t".session_save_path()."\n";
+		echo "\n";
 		echo "\n";
 		echo "###### SESSION DATA ######\n";
 		echo "\n";
@@ -744,22 +767,34 @@ function debug_footer($db) {
 		$data['cfg_source'] = sdbquery($querystr,$connection);
 		$connection = null;
 		echo "\n";
+		echo "\n";
 		echo "###### SQLite datastore ######\n";
+		echo "\n";
 		echo "\n";
 		echo "### table CFG_ENGINE ###\n";
 		print_r($data['cfg_engine']);
 		echo "\n";
+		echo "\n";
 		echo "### table CFG_LAN ###\n";
 		print_r($data['cfg_lan']);
+		echo "\n";
 		echo "\n";
 		echo "### table CFG_WIFISEC ###\n";
 		print_r($data['cfg_wifisec']);
 		echo "\n";
+		echo "\n";
 		echo "### table CFG_SOURCE ###\n";
 		print_r($data['cfg_source']);
 		echo "\n";
+		echo "\n";
 		echo "### table CFG_MPD ###\n";
 		print_r($data['cfg_mpd']);
+		echo "\n";
+		}
+		if ($_SESSION['debug'] > 0) {
+		echo "\n";
+		printf("Page created in %.5f seconds.", (microtime(true) - $_SERVER['REQUEST_TIME_FLOAT']));
+		echo "\n";
 		echo "\n";
 		}
 }
@@ -873,6 +908,11 @@ function wrk_mpdconf($outpath,$db) {
 
 // format audio input / output interfaces
 	$output .= "\n";
+	$output .= "decoder {\n";
+	$output .= "\t\tplugin \"ffmpeg\"\n";
+	$output .= "\t\tenabled \"no\"\n";
+	$output .= "}\n";
+	$output .= "\n";
 	$output .= "input {\n";
 	$output .= "\t\tplugin \"curl\"\n";
 	$output .= "}\n";
@@ -895,39 +935,117 @@ function wrk_mpdconf($outpath,$db) {
 	fclose($fh);
 }
 
-function wrk_sourcecfg($db,$action,$input) {
+function wrk_sourcecfg($db,$queueargs) {
+$action = $queueargs['mount']['action'];
+unset($queueargs['mount']['action']);
 	switch ($action) {
+
 		case 'reset': 
-		$content = file_get_contents('/var/www/templates/source-default.txt');
-		$dbh = cfgdb_connect($db);
-		cfgdb_delete('cfg_source',$dbh);
-		$dbh = null;
-		$updatehash = 1;
-		break;
-		
-		case 'manual':
-		$content = $input;
-		break;
-			
-		case 'config':
 		$dbh = cfgdb_connect($db);
 		$source = cfgdb_read('cfg_source',$dbh);
 			foreach ($source as $mp) {
-			$content .= $mp['name']."    -fstype=cifs,file_mode=0777,dir_mode=0777,iocharset=".$mp['charset'].",rsize=".$mp['rsize'].",wsize=".$mp['wsize'].",cache=strict,username=".$mp['username'].",password=".$mp['password']."    ://".$mp['address']."/".$mp['remotedir']."\n";
+			sysCmd("umount -f /mnt/NAS/".$mp['name']);
+			sysCmd("rmdir /mnt/NAS/".$mp['name']);
 			}
+		if (cfgdb_delete('cfg_source',$dbh)) {
+		$return = 1;
+		} else {
+		$return = 0;
+		}
 		$dbh = null;
-		$updatehash = 1;
+		break;
+
+		case 'add':
+		$dbh = cfgdb_connect($db);
+		print_r($queueargs);
+		unset($queueargs['mount']['id']);
+		// format values string
+		foreach ($queueargs['mount'] as $key => $value) {
+			if ($key == 'wsize') {
+			$values .= "'".$value."'";
+			} else {
+			$values .= "'".$value."',";
+			}
+		}
+		// write new entry
+		cfgdb_write('cfg_source',$dbh,$values);
+		$newmountID = $dbh->lastInsertId();
+		$mp = cfgdb_read('cfg_source',$dbh,'',$newmountID);
+		print_r($mp);
+		sysCmd("mkdir /mnt/NAS/".$mp[0]['name']."");
+		// smb/cifs mount
+		if ($queueargs['mount']['type'] == 'cifs') {
+			if (sysCmd("mount -t cifs //".$mp[0]['address']."/".$mp[0]['remotedir']." -o username=".$mp[0]['username'].",password=".$mp[0]['password'].",rsize=".$mp[0]['rsize'].",wsize=".$mp[0]['wsize'].",iocharset=".$mp[0]['charset'].",cache=strict,file_mode=0777,dir_mode=0777,noatime,ro /mnt/NAS/".$mp[0]['name'])) {
+			$return = 1;
+			} else {
+			$return = 0;
+			}
+		}
+		// nfs mount
+		if ($queueargs['mount']['type'] == 'nfs') {
+			if (sysCmd("mount -t nfs -o nfsvers=3,ro,noatime ".$mp[0]['address'].":/".$mp[0]['remotedir']." /mnt/NAS/".$mp[0]['name'])) {
+			$return = 1;
+			} else {
+			$return = 0;
+			}
+		}
+		$dbh = null;
+		break;
+		
+		case 'edit':
+		$dbh = cfgdb_connect($db);
+		cfgdb_update('cfg_source',$dbh,'',$queueargs['mount']);	
+		$mp = cfgdb_read('cfg_source',$dbh,'',$queueargs['mount']['id']);
+		if ($mp['name'] != $queueargs['mount']['name']) {
+		sysCmd("umount -f /mnt/NAS/".$mp['name']);
+		sysCmd("mkdir /mnt/NAS/".$queueargs['mount']['name']."");
+			if ($queueargs['mount']['type'] == 'cifs') {
+				if (sysCmd("mount -t cifs //".$mp['address']."/".$mp['remotedir']." -o username=".$mp['username'].",password=".$mp['password'].",rsize=".$mp['rsize'].",wsize=".$mp['wsize'].",iocharset=".$mp['charset'].",cache=strict,file_mode=0777,dir_mode=0777,noatime,ro /mnt/NAS/".$mp['name'])) {
+				$return = 1;
+				} else {
+				$return = 0;
+				}
+			}
+			if ($queueargs['mount']['type'] == 'nfs') {
+				if (sysCmd("mount -t nfs -o nfsvers=3,ro,noatime ".$mp[0]['address'].":/".$mp[0]['remotedir']." /mnt/NAS/".$mp[0]['name'])) {
+				$return = 1;
+				} else {
+				$return = 0;
+				}
+			}
+		} else {
+			if ($queueargs['mount']['type'] == 'cifs') {
+				if (sysCmd("mount -t cifs //".$mp['address']."/".$mp['remotedir']." -o remount,username=".$mp['username'].",password=".$mp['password'].",rsize=".$mp['rsize'].",wsize=".$mp['wsize'].",iocharset=".$mp['charset'].",cache=strict,file_mode=0777,dir_mode=0777,noatime,ro /mnt/NAS/".$mp['name'])) {
+				$return = 1;
+				} else {
+				$return = 0;
+				}
+			}
+			if ($queueargs['mount']['type'] == 'nfs') {
+				if (sysCmd("mount -t nfs -o remount,nfsvers=3,ro,noatime ".$mp[0]['address'].":/".$mp[0]['remotedir']." /mnt/NAS/".$mp[0]['name'])) {
+				$return = 1;
+				} else {
+				$return = 0;
+				}
+			}
+		}
+		$dbh = null;
+		break;
+		
+		case 'delete':
+		sysCmd('umount -f /mnt/NAS/'.$queueargs['mount']['name']);
+		sysCmd('rmdir /mnt/NAS/'.$queueargs['mount']['name']);
+		$dbh = cfgdb_connect($db);
+		if (cfgdb_delete('cfg_source',$dbh,$queueargs['mount']['id'])) {
+		$return = 1;
+		} else {
+		$return = 0;
+		}
+		$dbh = null;
 		break;
 	}
-// flush content to /etc/auto.nas
-$fh = fopen('/etc/auto.nas', 'w');
-fwrite($fh, $content);
-fclose($fh);
-	if ($updatehash == 1) {
-		// update hash
-		$hash = md5_file('/etc/auto.nas');
-		playerSession('write',$db,'sourceconfhash',$hash);
-	}
+
+return $return;
 }
 
 function wrk_getHwPlatform() {
@@ -1005,7 +1123,8 @@ playerSession('write',$db,'playerid',$playerid);
 }
 
 function wrk_playerID($arch) {
-$playerid = $arch.md5(uniqid(rand(), true)).md5(uniqid(rand(), true));
+// $playerid = $arch.md5(uniqid(rand(), true)).md5(uniqid(rand(), true));
+$playerid = $arch.md5_file('/sys/class/net/eth0/address');
 return $playerid;
 }
 
@@ -1157,7 +1276,8 @@ print_r($output);
 echo "</pre>";
 echo "<br>";
 */
-// key [3] == extralarge 
+// key [3] == extralarge last.fm image
+return $output['album']['image'][3]['#text'];
 }
 
 // ACX Functions

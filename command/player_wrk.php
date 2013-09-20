@@ -30,8 +30,8 @@
  
 // common include
 include('/var/www/inc/player_lib.php');
-ini_set('display_errors', '0');
-// ini_set('error_log','/var/log/php_errors.log');
+ini_set('display_errors', '1');
+ini_set('error_log','/var/log/php_errors.log');
 // $mpd = openMpdSocket('localhost', 6600) ;
 $db = 'sqlite:/var/www/db/player.db';
 
@@ -187,6 +187,9 @@ $_SESSION['w_jobID'] = '';
 // inizialize debug
 $_SESSION['debug'] = 0;
 $_SESSION['debugdata'] = '';
+// devel only
+// $_SESSION['w_queue'] = '';
+// $_SESSION['w_active'] = 0;
 
 
 // initialize OrionProfile
@@ -248,7 +251,7 @@ hashCFG('check_net',$db);
 // check /etc/mpd.conf integrity
 hashCFG('check_mpd',$db);
 // check /etc/auto.nas integrity
-hashCFG('check_source',$db);
+// hashCFG('check_source',$db);
 
 // unlock session files
 playerSession('unlock',$db,'','');
@@ -280,8 +283,9 @@ session_start();
 		break;
 		
 		case 'mpdrestart':
-		$cmd = 'service mpd restart';
-		sysCmd($cmd);
+		sysCmd('killall mpd');
+		sleep(1);
+		sysCmd('service mpd start');
 		break;
 		
 		case 'phprestart':
@@ -362,7 +366,7 @@ session_start();
 		// update hash
 		$hash = md5_file('/etc/mpd.conf');
 		playerSession('write',$db,'mpdconfhash',$hash);
-		sysCmd('killall -9 mpd');
+		sysCmd('killall mpd');
 		sysCmd('service mpd start');
 		break;
 		
@@ -371,38 +375,36 @@ session_start();
 		$fh = fopen('/etc/mpd.conf', 'w');
 		fwrite($fh, $_SESSION['w_queueargs']);
 		fclose($fh);
-		sysCmd('killall -9 mpd');
+		sysCmd('killall mpd');
 		sysCmd('service mpd start');
 		break;
 		
 		case 'sourcecfg':
-		if ($_SESSION['w_queueargs']['action'] == 'delete') {
-		sysCmd('umount -f /mnt/NAS/'.$_SESSION['w_queueargs']['path']);
-		sysCmd('umount -f /mnt/NAS/'.$_SESSION['w_queueargs']['path']);
-		$dbh = cfgdb_connect($db);
-		cfgdb_delete('cfg_source',$dbh,$_SESSION['w_queueargs']['id']);
-		$dbh = null;
-		}		
-		wrk_sourcecfg($db,'config');
-		sysCmd('service autofs restart');
-		sleep(3);
-		$mpd = openMpdSocket('localhost', 6600);
-		sendMpdCommand($mpd,'update');
-		closeMpdSocket($mpd);
+		wrk_sourcecfg($db,$_SESSION['w_queueargs']);
+		// rel 1.0 autoFS
+		// if (sysCmd('service autofs restart')) {
+		// sleep(3);
+		// $mpd = openMpdSocket('localhost', 6600);
+		// sendMpdCommand($mpd,'update');
+		// closeMpdSocket($mpd);
+		// }
 		break;
 		
-		case 'sourcecfgman':
-		if ($_SESSION['w_queueargs'] == 'sourcecfgreset') {
-		wrk_sourcecfg($db,'reset');
-		} else {
-		wrk_sourcecfg($db,'manual',$_SESSION['w_queueargs']);
-		}
-		sysCmd('service autofs restart');
-		sleep(3);
-		$mpd = openMpdSocket('localhost', 6600);
-		sendMpdCommand($mpd,'update');
-		closeMpdSocket($mpd);
-		break;
+		// rel 1.0 autoFS
+		// case 'sourcecfgman':
+		// if ($_SESSION['w_queueargs'] == 'sourcecfgreset') {
+		// wrk_sourcecfg($db,'reset');
+		// } else {
+		// wrk_sourcecfg($db,'manual',$_SESSION['w_queueargs']);
+		// }
+		// if (sysCmd('service autofs restart')) {
+		// sysCmd('service autofs restart');
+		// sleep(3);
+		// $mpd = openMpdSocket('localhost', 6600);
+		// sendMpdCommand($mpd,'update');
+		// closeMpdSocket($mpd);
+		// }
+		// break;
 		
 		case 'enableapc':
 		// apc.ini

@@ -34,7 +34,7 @@ define('ROOTPATH', $_SERVER['HOME'] . '/' ); // default = '/'
 //define('ROOTPATH', $_SERVER['DOCUMENT_ROOT'] . '/' ); // default = '/'
 define('DAEMONIP', 'localhost'); // default = 'localhost'
 // DEV debug parameters
-//ini_set('display_errors',1);
+//ni_set('display_errors',1);
 //define('ERRORLEVEL', '-1'); // default = 'E_ALL ^ E_NOTICE'
 //__production
 define('ERRORLEVEL', 'E_ERROR'); // default = 'E_ALL ^ E_NOTICE'

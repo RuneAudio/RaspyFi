@@ -10,15 +10,12 @@
 			<span id="format-bitrate"></span>
 			<div class="row-fluid">
 				<div class="span6">
-					<span id="time-display"></span>
-					<div id="timeflow">
-						<div id="timeknob">
-							<div id="countdown" ms-user-select="none">
-								<input class="playbackknob" id="time" value="0" data-readonly="false" data-min="0" data-max="1000" data-width="200" data-height="200" data-thickness="0.30" data-bgColor="#34495E" data-fgcolor="#1ABC9C">
-							</div>
-							<span id="countdown-display"></span>
-							<span id="total"></span>
+					<div id="timeknob">
+						<div id="countdown" ms-user-select="none">
+							<input class="playbackknob" id="time" value="0" data-readonly="false" data-min="0" data-max="1000" data-width="100%" data-thickness="0.30" data-bgColor="#34495E" data-fgcolor="#1ABC9C">
 						</div>
+						<span id="countdown-display"></span>
+						<span id="total"></span>
 					</div>
 					<div class="btn-toolbar">
 						<div class="btn-group">
@@ -30,7 +27,7 @@
 					</div>
 				</div>
 				<div class="span6 volume">
-					<input class="volumeknob" id="volume" data-width="200" data-cursor="true" data-bgColor="#fff" data-fgColor="#1ABC9C" data-thickness=".25" data-angleArc="250" data-angleOffset="-125" data-skin="tron" value="66">	
+					<input class="volumeknob" id="volume" data-width="211" data-cursor="true" data-bgColor="#fff" data-fgColor="#1ABC9C" data-thickness=".25" data-angleArc="250" data-angleOffset="-125" data-skin="tron" value="66">	
 					<div class="btn-toolbar floatright">
 						<div class="btn-group">
 							<a id="volumedn" class="btn btn-cmd btn-volume" href="#notarget"><i class="icon-volume-down"></i></a>

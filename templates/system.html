@@ -81,6 +81,18 @@ $_system_select[cmediafix0]
 			</div>
 		</fieldset>
 	</form>
+	<form class="form-horizontal" data-validate="parsley" action="" method="post">
+        <fieldset>
+            <legend>Last.FM scrobbling</legend>
+            <div class="control-group" >
+                <label class="control-label" for="port">Port</label>
+                <div class="controls">
+                    <input class="input-large" class="input-large" type="text" id="lastfm_user" name="lastfm[user]" value="$_lastfm[user]" data-trigger="change">
+					<input class="input-large" class="input-large" type="text" id="lastfm_pass" name="lastfm[pass]" value="$_lastfm[pass]" data-trigger="change">
+                    <span class="help-block">This setting is the TCP port that is desired for the daemon to get assigned to.</span>
+                </div>
+            </div>
+		</fieldset>
 	<!--
 <form class="form-horizontal" method="post">
 		<fieldset>

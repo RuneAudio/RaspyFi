@@ -76,32 +76,9 @@ html, body {
 #playlist-position, #format-bitrate {
 	color: #8FA7BF;
 }
-#timeknob, #timeflow {
-	position: relative;
-	width: 200px;
-	height: 200px;
-	margin: 0 auto;
-	background-color: #eee;
-	border-radius: 50%;
-	-webkit-transform: translate3d(0, 0, 0);
-	-moz-transform: translate3d(0, 0, 0);
-	-o-transform: translate3d(0, 0, 0);
-	-ms-transform: translate3d(0, 0, 0);
-	transform: translate3d(0, 0, 0);
-	-webkit-transition: box-shadow .9s ease-in-out, background-color .9s ease-in-out;
-	-moz-transition: box-shadow .9s ease-in-out, background-color .9s ease-in-out;
-	-o-transition: box-shadow .9s ease-in-out, background-color .9s ease-in-out;
-	-ms-transition: box-shadow .9s ease-in-out, background-color .9s ease-in-out;
-	transition: box-shadow .9s ease-in-out, background-color .9s ease-in-out;
-}
-#timeflow {
-	box-shadow: 0 0 0 20px transparent;
-}
 #timeknob {
-	box-shadow: 0 0 0 20px transparent;
-}
-#timeflow {
-	margin: 30px auto;
+	position: relative;
+	padding: 30px 0 13px;
 }
 #timeknob.pulse, #timeflow.pulse {		
 	box-shadow: 0 0 0 0 rgba(0,0,0,0.2);
@@ -114,22 +91,23 @@ html, body {
 }
 #countdown, #time {
     position: relative;
-	margin-top: 10px;
 }
 #time {
 	visibility: hidden;
 }
 #countdown {
+	height: 200px;
 	color: #fff;
+}
+#countdown div {
+	margin: 0 auto;
 }
 #countdown-display {
 	position: absolute;
 	top: 50%;
 	left: 50%;
 	width: 120px;
-	height: 20px;
-	margin: -12px 0 0 -60px;
-	/*background: #fff;*/
+	margin: -5px 0 0 -60px;
 	font-size: 20px;
 	line-height: 20px;
 	font-weight: bold;
@@ -139,8 +117,7 @@ html, body {
 	top: 68%;
 	left: 50%;
 	width: 60px;
-	height: 20px;
-	margin: -12px 0 0 -30px;
+	margin: -10px 0 0 -30px;
 }
 #days-sub {
     left: 80px;
@@ -157,6 +134,9 @@ html, body {
 
 .volume {
 	padding-top: 30px;
+}
+.volume .btn-toolbar {
+	margin-top: 20px;
 }
 .volumeknob {
 	width: 200px;
@@ -260,6 +240,12 @@ html, body {
 
 .logo {
 	margin: -3px 5px 0 -5px;
+}
+#menu-top .dropdown i,
+#context-menus i {
+	display: inline-block;
+	width: 16px;
+	text-align: center;
 }
 
 
@@ -847,6 +833,9 @@ body { background: #cf0; } */
 	}
 	select, textarea, input[type="text"], input[type="password"], input[type="datetime"], input[type="datetime-local"], input[type="date"], input[type="month"], input[type="time"], input[type="week"], input[type="number"], input[type="email"], input[type="url"], input[type="search"], input[type="tel"], input[type="color"], .uneditable-input {
 		height: 40px;
+	}
+	#currentartist {
+		margin-top: 15px;
 	}
 }
 @media (max-width: 479px) {

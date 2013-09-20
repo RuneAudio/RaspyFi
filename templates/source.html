@@ -9,8 +9,19 @@
 					<input class="input-large" class="input-large" type="text" id="nas-name" name="mount[name]" value="$_name" data-trigger="change" placeholder="es: Classical">
 					<input type="hidden" name="mount[type]" value="cifs">
 					<input type="hidden" name="mount[id]" value="$_id">
+					<input type="hidden" name="mount[action]" value="$_action">
 					<span class="help-block">The name you want to give to this source. It will appear in your database tree structure</span>
 				</div>
+			</div>
+			<div class="control-group" >
+					<label class="control-label" for="nas-type">fileshare protocol</label>
+					<div class="controls">
+						<select id="type" name="mount[type]" class="input-large">
+							<option value="cifs" $_type>SMB/CIFS</option>
+							<option value="nfs" $_type>NFS</option>
+						</select>
+						<span class="help-block">Select SMB/CIFS for connect Windows file shares or NFS for unix file shares</span>
+					</div>
 			</div>
 			<div class="control-group" >
 				<label class="control-label" for="nas-ip">IP address</label>
@@ -36,7 +47,7 @@
 			<div class="control-group" >
 				<label class="control-label" for="nas-pasw">Password</label>
 				<div class="controls">
-					<input class="input-large" class="input-large" type="password" id="nas-pasw" name="mount[password]" value="$_password" placeholder="pass" >
+					<input class="input-large" class="input-large" type="password" id="nas-pasw" name="mount[password]" value="$_password" placeholder="pass" autocomplete="off">
 					<span class="help-block">If required, specify password to grant access to the NAS (case sensitive)</span>
 				</div>
 			</div>
@@ -46,8 +57,8 @@
 					<label class="control-label" for="nas-charset">Charset</label>
 					<div class="controls">
 						<select id="log-level" name="mount[charset]" class="input-large">
-							<option value="utf8" $_char_utf8>UTF8 (default)</option>
-							<option value="iso8859-1" $_char_iso>ISO 8859-1</option>
+							<option value="utf8" $_charset>UTF8 (default)</option>
+							<option value="iso8859-1" $_charset>ISO 8859-1</option>
 						</select>
 						<span class="help-block">Change this settings if you experience problems with character encoding</span>
 					</div>

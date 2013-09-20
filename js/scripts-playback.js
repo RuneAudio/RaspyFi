@@ -1,7 +1,7 @@
 /*
- *      PlayerUI Copyright (C) 2013 Andrea Coiutti & Simone De Gregori
- *		 Tsunamp Team
- *      http://www.tsunamp.com
+ *  PlayerUI Copyright (C) 2013 Andrea Coiutti & Simone De Gregori
+ *	 Tsunamp Team
+ *  http://www.tsunamp.com
  *
  *  This Program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,15 +18,15 @@
  *  <http://www.gnu.org/licenses/>.
  *
  *
- *	UI-design/JS code by: 	Andrea Coiutti (aka ACX)
- * PHP/JS code by:			Simone De Gregori (aka Orion)
+ *	 UI-design/JS code by: 	Andrea Coiutti (aka ACX)
+ *  PHP/JS code by:			    Simone De Gregori (aka Orion)
  * 
- * file:							scripts-playback.js
- * version:						1.0
+ *  file:							scripts-playback.js
+ *  version:						1.1
  *
  */
  
-// SET DI VARIABILI GLOBALI
+// Global GUI Array
 // ----------------------------------------------------------------------------------------------------
 var GUI = {
     json: 0,
@@ -47,33 +47,24 @@ var GUI = {
 
 jQuery(document).ready(function($){ 'use strict';
 
-    // INIZIALIZZAZIONE
+    // INITIALIZATION
     // ----------------------------------------------------------------------------------------------------
-    // prima connessione col demone MPD
+    // first connection with MPD daemon
     backendRequest(GUI.state);
 
-    // aggiorna per la prima volta l'interfaccia
+    // first GUI update
     updateGUI(GUI.json);
     getDB('filepath', GUI.currentpath, GUI.browsemode);
     $.pnotify.defaults.history = false;
 
-    // REFRESH GUI
-    // ----------------------------------------------------------------------------------------------------
-    // aggiornamento ciclico dell'interfaccia
-    // setInterval(function() {
-        // if (GUI.halt) {
-            // GUI.halt = 0;
-            // console.log('inspect GUI.halt= ', GUI.halt)
-            // }
-        // }, 1000);
-
+	// hide "connecting" layer
     if (GUI.state != 'disconnected') {
     $('#loader').hide();
     }
 
-    // PULSANTI
+    // BUTTONS
     // ----------------------------------------------------------------------------------------------------
-    // comportamento dei pulsanti di playback
+    // playback
     $('.btn-cmd').click(function(){
         var cmd;
         // stop
@@ -117,17 +108,17 @@ jQuery(document).ready(function($){ 'use strict';
 			$('#countdown-display').countdown('pause');
 			window.clearInterval(GUI.currentKnob);
         }
-        // controllo volume a step
+        // step volume control
         else if ($(this).hasClass('btn-volume')) {
             if (GUI.volume == null ) {
                 GUI.volume = $('#volume').val();
             }
             if ($(this).attr('id') == 'volumedn') {
-                var vol = parseInt(GUI.volume) - 3;
+                var vol = parseInt(GUI.volume) - 1;
                 GUI.volume = vol;
                 $('#volumemute').removeClass('btn-primary');
             } else if ($(this).attr('id') == 'volumeup') {
-                var vol = parseInt(GUI.volume) + 3;
+                var vol = parseInt(GUI.volume) + 1;
                 GUI.volume = vol;
                 $('#volumemute').removeClass('btn-primary');
             } else if ($(this).attr('id') == 'volumemute') {
@@ -145,7 +136,7 @@ jQuery(document).ready(function($){ 'use strict';
             return;
         }
 
-        // pulsanti a toggle
+        // toggle buttons
         if ($(this).hasClass('btn-toggle')) {
             if ($(this).hasClass('btn-primary')) {
                 cmd = $(this).attr('id') + ' 0';
@@ -153,7 +144,7 @@ jQuery(document).ready(function($){ 'use strict';
                 cmd = $(this).attr('id') + ' 1';
             }
             $(this).toggleClass('btn-primary');
-        // invio comando
+        // send command
         } else {
             cmd = $(this).attr('id');
         }
@@ -163,9 +154,10 @@ jQuery(document).ready(function($){ 'use strict';
 
     // KNOBS
     // ----------------------------------------------------------------------------------------------------
-    // avanzamento playback
+    // playback progressing
     $('.playbackknob').knob({
-        change : function (value) {
+        inline: false,
+		change : function (value) {
             if (GUI.state != 'stop') {
 				// console.log('GUI.halt (Knobs)= ', GUI.halt);
 				window.clearInterval(GUI.currentKnob)
@@ -194,7 +186,7 @@ jQuery(document).ready(function($){ 'use strict';
         draw : function () {}
     });
 
-    // pomello volume
+    // volume knob
     $('.volumeknob').knob({
         change : function (value) {
             setvol(value);
@@ -249,7 +241,7 @@ jQuery(document).ready(function($){ 'use strict';
         }
     });
 
-    //effetto estetico pulsazione knob
+    // "pulse" effect knob
     /*
     setInterval(function() {
         if (GUI.json['state'] == 'play') {
@@ -267,7 +259,7 @@ jQuery(document).ready(function($){ 'use strict';
     // PLAYLIST
     // ----------------------------------------------------------------------------------------------------
 
-    // click su una entry della playlist
+    // click on playlist entry
     $('.playlist').on('click', '.pl-entry', function() {
         var pos = $('.playlist .pl-entry').index(this);
         var cmd = 'play ' + pos;
@@ -278,23 +270,24 @@ jQuery(document).ready(function($){ 'use strict';
         $(this).parent().addClass('active');
     });
 
-    // click sulle azioni della playlist
+    // click on playlist actions
     $('.playlist').on('click', '.pl-action', function(event) {
         event.preventDefault();
         var pos = $('.playlist .pl-action').index(this);
         var cmd = 'trackremove&songid=' + pos;
         var path = $(this).parent().data('path');
-        notify('remove', 'RECUPERARE DATA-PATH!');
+        // recuperare datapath
+		notify('remove', '');
         sendPLCmd(cmd);
     });
 
-    // click sul tab della playlist
+    // click on playlist tab
     $('#open-panel-dx a').click(function(){
         var current = parseInt(GUI.json['song']);
         customScroll('pl', current, 200); // da eseguire sul tab ready!
     });
 
-    // click sul tab del playback
+    // click on playback tab
     $('#open-playback a').click(function(){
         // fai qualcosa
         // console.log('JSON = ', GUI.json);
@@ -304,7 +297,7 @@ jQuery(document).ready(function($){ 'use strict';
     // DATABASE
     // ----------------------------------------------------------------------------------------------------
 
-    // click su una entry del database
+    // click on database entry
     $('.database').on('click', '.db-browse', function() {
         $('.database li').removeClass('active');
         $(this).parent().addClass('active');
@@ -344,7 +337,7 @@ jQuery(document).ready(function($){ 'use strict';
         notify('add', path);
     });
 
-    // click sul pulsante aggiungi
+    // click on ADD button
     $('.database').on('click', '.db-action', function() {
         var path = $(this).parent().attr('data-path');
         GUI.DBentry[0] = path;
@@ -388,7 +381,7 @@ jQuery(document).ready(function($){ 'use strict';
         // console.log('Browse mode set to: ', GUI.browsemode);
     });
 
-    // tasti di scroll
+    // scroll buttons
     $('.db-firstPage').click(function(){
         $.scrollTo(0 , 500);
     });
@@ -430,12 +423,12 @@ jQuery(document).ready(function($){ 'use strict';
         randomScrollPL();
     });
 
-    // aprire tab da pagina esterna
+    // open tab from external link
     var url = document.location.toString();
     if (url.match('#')) {
         $('#menu-bottom a[href=#'+url.split('#')[1]+']').tab('show') ;
     }
-    // evita lo scroll con le HTML5 history API
+    // do not scroll with HTML5 history API
     $('#menu-bottom a').on('shown', function (e) {
         if(history.pushState) {
             history.pushState(null, null, e.target.hash);
@@ -444,7 +437,7 @@ jQuery(document).ready(function($){ 'use strict';
         }
     });
 
-    // ricerca nella playlist
+    // playlist search
     $("#pl-filter").keyup(function(){
         $.scrollTo(0 , 500);
         var filter = $(this).val(), count = 0;
@@ -473,213 +466,7 @@ jQuery(document).ready(function($){ 'use strict';
 });
 
 
-
-// FUNZIONI
-// ----------------------------------------------------------------------------------------------------
-
-// aggiorna le info sull'interfaccia
-function updateGUI(json){
-    // logica stato attuale
-    refreshState(GUI.state);
-    // controllo cambio canzone
-    //console.log('A = ', json['currentsong']); console.log('B = ', GUI.currentsong);
-    if (GUI.currentsong != json['currentsong']) {
-        countdownRestart(0);
-        if ($('#panel-dx').hasClass('active')) {
-            var current = parseInt(json['song']);
-            customScroll('pl', current);
-        }
-    }
-    // azioni comuni
-    // console.log('GUI.halt (azioni comuni)= ', GUI.halt);
-    //if (!GUI.halt) {
-        //refreshTimer(parseInt(json['elapsed']), parseInt(json['time']), json['state']);
-
-        $('#volume').val((json['volume'] == '-1') ? 100 : json['volume']).trigger('change');
-        $('#currentartist').html(json['currentartist']);
-        $('#currentsong').html(json['currentsong']);
-        $('#currentalbum').html(json['currentalbum']);
-        if (json['repeat'] == 1) {
-            $('#repeat').addClass('btn-primary');
-        } else {
-            $('#repeat').removeClass('btn-primary');
-        }
-        if (json['random'] == 1) {
-            $('#random').addClass('btn-primary');
-        } else {
-            $('#random').removeClass('btn-primary');
-        }
-        if (json['consume'] == 1) {
-            $('#consume').addClass('btn-primary');
-        } else {
-            $('#consume').removeClass('btn-primary');
-        }
-        if (json['single'] == 1) {
-            $('#single').addClass('btn-primary');
-        } else {
-            $('#single').removeClass('btn-primary');
-        }
-
-    //}
-    GUI.halt = 0;
-    // console.log('GUI.halt (azioni comuni2)= ', GUI.halt);
-    GUI.currentsong = json['currentsong'];
-}
-
-// aggiorna lo status
-function refreshState(state) {
-    if (state == 'play') {
-        $('#play').addClass('btn-primary');
-        $('#play i').removeClass('icon-pause').addClass('icon-play');
-        $('#stop').removeClass('btn-primary');
-    } else if (state == 'pause') {
-        $('#playlist-position').html('Not playing');
-        $('#play').addClass('btn-primary');
-        $('#play i').removeClass('icon-play').addClass('icon-pause');
-        $('#stop').removeClass('btn-primary');
-    } else if (state == 'stop') {
-        $('#play').removeClass('btn-primary');
-        $('#play i').removeClass('icon-pause').addClass('icon-play');
-        $('#stop').addClass('btn-primary');
-        $('#countdown-display').countdown('destroy');
-        $('#elapsed').html('00:00');
-        $('#total').html('');
-        $('#time').val(0).trigger('change');
-        $('#format-bitrate').html('&nbsp;');
-        $('.playlist li').removeClass('active');
-    }
-    if (state == 'play' || state == 'pause') {
-        $('#elapsed').html(timeConvert(GUI.json['elapsed']));
-        $('#total').html(timeConvert(GUI.json['time']));
-        //$('#time').val(json['song_percent']).trigger('change');
-        $('#playlist-position').html('Playlist position ' + (parseInt(GUI.json['song']) + 1) +'/'+GUI.json['playlistlength']);
-        var fileinfo = (GUI.json['audio_channels'] && GUI.json['audio_sample_depth'] && GUI.json['audio_sample_rate']) ? (GUI.json['audio_channels'] + ', ' + GUI.json['audio_sample_depth'] + ' bit, ' + GUI.json['audio_sample_rate'] +' kHz, '+GUI.json['bitrate']+' kbps') : '&nbsp;';
-        $('#format-bitrate').html(fileinfo);
-        $('.playlist li').removeClass('active');
-        var current = parseInt(GUI.json['song']) + 1;
-        $('.playlist li:nth-child(' + current + ')').addClass('active');
-    }
-	
-	// mostra icona UpdateDB
-	// console.log('dbupdate = ', GUI.json['updating_db']);
-	if (typeof GUI.json['updating_db'] != 'undefined') {
-		$('.open-panel-sx').html('<i class="icon-refresh icon-spin"></i> Updating');
-	} else {
-		$('.open-panel-sx').html('<i class="icon-music sx"></i> Browse');
-	}
-}
-
-// aggiorna il countdown
-function refreshTimer(startFrom, stopTo, state){
-    //console.log('startFrom = ', startFrom);
-    //console.log('state = ', state);
-    if (state == 'play') {
-        $('#countdown-display').countdown('destroy');
-        $('#countdown-display').countdown({since: -(startFrom), compact: true, format: 'MS'});
-    } else if (state == 'pause') {
-        //console.log('startFrom = ', startFrom);
-        $('#countdown-display').countdown('destroy');
-        $('#countdown-display').countdown({since: -(startFrom), compact: true, format: 'MS'});
-        $('#countdown-display').countdown('pause');
-    } else if (state == 'stop') {
-        $('#countdown-display').countdown('destroy');
-        $('#countdown-display').countdown({since: 0, compact: true, format: 'MS'});
-        $('#countdown-display').countdown('pause');
-    }
-}
-
-// aggiorna il knob di avanzamento
-function refreshKnob(json){
-    window.clearInterval(GUI.currentKnob)
-    var initTime = json['song_percent'];
-    //console.log('percent = ', initTime);
-    var delta = json['time'] / 1000;
-    $('#time').val(initTime*10).trigger('change');
-    if (GUI.state == 'play') {
-        GUI.currentKnob = setInterval(function() {
-            // console.log('initTime = ', initTime);
-            // console.log('delta = ', delta);
-            if (GUI.visibility == 'visible') {
-                initTime = initTime + 0.1;
-            } else {
-                initTime = initTime + 100/json['time'];
-            }
-            $('#time').val(initTime*10).trigger('change');
-            //document.title = Math.round(initTime*10) + ' - ' + GUI.visibility;
-        }, delta * 1000);
-    }
-}
-
-// conversione temporale
-function timeConvert(seconds) {
-    minutes = Math.floor(seconds / 60);
-    seconds -= minutes * 60;
-    mm = (minutes < 10) ? ('0' + minutes) : minutes;
-    ss = (seconds < 10) ? ('0' + seconds) : seconds;
-    display = mm + ':' + ss;
-    return display;
-}
-
-// resetta il countdown
-function countdownRestart(startFrom) {
-    $('#countdown-display').countdown('destroy');
-    $('#countdown-display').countdown({since: -(startFrom), compact: true, format: 'MS'});
-}
-
-// setta il volume da knob
-function setvol(val) {
-    $('#volume').val(val);
-    GUI.volume = val;
-    GUI.halt = 1;
-    // console.log('GUI.halt (setvol)= ', GUI.halt);
-    $('#volumemute').removeClass('btn-primary');
-    sendCmd('setvol ' + val);
-}
-
-// scrolling
-function customScroll(list, destination, speed) {
-    if (typeof(speed) === 'undefined') speed = 500;
-    var entryheight = parseInt(1 + $('#' + list + '-1').height());
-    var centerheight = parseInt($(window).height()/2);
-    var scrolltop = $(window).scrollTop();
-    if (list == 'db') {
-        var scrollcalc = parseInt((destination)*entryheight - centerheight);
-        var scrolloffset = scrollcalc;
-    } else if (list == 'pl') {
-        //var scrolloffset = parseInt((destination + 2)*entryheight - centerheight);
-        var scrollcalc = parseInt((destination + 2)*entryheight - centerheight);
-        if (scrollcalc > scrolltop) {
-            var scrolloffset = '+=' + Math.abs(scrollcalc - scrolltop) + 'px';
-        } else {
-            var scrolloffset = '-=' + Math.abs(scrollcalc - scrolltop) + 'px';
-        }
-    }
-    // debug
-    // console.log('-------------------------------------------');
-    // console.log('customScroll parameters = ' + list + ', ' + destination + ', ' + speed);
-    // console.log('scrolltop = ', scrolltop);
-    // console.log('scrollcalc = ', scrollcalc);
-    // console.log('scrolloffset = ', scrolloffset);
-    if (scrollcalc > 0) {
-        $.scrollTo( scrolloffset , speed );
-    } else {
-        $.scrollTo( 0 , speed );
-    }
-    //$('#' + list + '-' + (destination + 1)).addClass('active');
-}
-
-function randomScrollPL() {
-    var n = $(".playlist li").size();
-    var random = 1 + Math.floor(Math.random() * n);
-    customScroll('pl', random);
-}
-function randomScrollDB() {
-    var n = $(".database li").size();
-    var random = 1 + Math.floor(Math.random() * n);
-    customScroll('db', random);
-}
-
-// rileva se la tab c attiva o meno
+// check active tab
 (function() {
     hidden = 'hidden';
     // Standards:

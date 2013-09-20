@@ -106,7 +106,7 @@ fi
 # mod2
 if [ "$1" == "Orion" ]; then
 echo -n performance > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-ifconfig eth0 mtu 1024
+ifconfig eth0 mtu 1500
 echo noop > /sys/block/mmcblk0/queue/scheduler
 echo 0 > /proc/sys/vm/swappiness
 echo 500000 > /proc/sys/kernel/sched_latency_ns

@@ -69,7 +69,9 @@ if (isset($_GET['updatempd']) && $_GET['updatempd'] == '1' ){
 
 // handle POST
 if(isset($_POST['mount']) && !empty($_POST['mount'])) {
-$dbh = cfgdb_connect($db);
+// convert slashes for remotedir path
+$_POST['mount']['remotedir'] = str_replace('\\', '/', $_POST['mount']['remotedir']);
+
 	if ($_POST['mount']['wsize'] == '') {
 	$_POST['mount']['wsize'] = 4096;
 	}
@@ -77,33 +79,14 @@ $dbh = cfgdb_connect($db);
 	if ($_POST['mount']['rsize'] == '') {
 	$_POST['mount']['rsize'] = 2048;
 	}
-	
-	if (isset($_POST['mount']['id']) && !empty($_POST['mount']['id'])) {
-	// update an existing entry
-		cfgdb_update('cfg_source',$dbh,'',$_POST['mount']);		
-	} else {
-	unset($_POST['mount']['id']);
-	// format values string
-		foreach ($_POST['mount'] as $key => $value) {
-			if ($key == 'wsize') {
-			$values .= "'".$value."'";
-			} else {
-			$values .= "'".$value."',";
-			}
-		}
-	// write new entry
-	cfgdb_write('cfg_source',$dbh,$values);
-	}
-$dbh = null;
-// tell worker to write new auto.nas
+// activate worker
 if (isset($_POST['delete']) && $_POST['delete'] == 1) {
 // delete an existing entry
 		if ($_SESSION['w_lock'] != 1 && $_SESSION['w_queue'] == '') {
 		session_start();
 		$_SESSION['w_queue'] = "sourcecfg";
-		$_SESSION['w_queueargs']['action'] = 'delete';
-		$_SESSION['w_queueargs']['id'] = $_POST['mount']['id'];
-		$_SESSION['w_queueargs']['path'] = $_POST['mount']['name'];
+		$_POST['mount']['action'] = 'delete';
+		$_SESSION['w_queueargs'] = $_POST;
 		$_SESSION['w_active'] = 1;
 		// set UI notify
 		$_SESSION['notify']['title'] = 'mount point deleted';
@@ -121,6 +104,7 @@ if (isset($_POST['delete']) && $_POST['delete'] == 1) {
 		if ($_SESSION['w_lock'] != 1 && $_SESSION['w_queue'] == '') {
 		session_start();
 		$_SESSION['w_queue'] = "sourcecfg";
+		$_SESSION['w_queueargs']  = $_POST;
 		$_SESSION['w_active'] = 1;
 		// set UI notify
 		$_SESSION['notify']['title'] = 'mount point modified';
@@ -131,11 +115,13 @@ if (isset($_POST['delete']) && $_POST['delete'] == 1) {
 		$_SESSION['notify']['title'] = 'Job Failed';
 		$_SESSION['notify']['msg'] = 'background worker is busy.';
 		session_write_close();
-		}
+		} 
 	}
 }
 	
 // handle manual config
+// rel 1.0 autoFS 
+/*
 if(isset($_POST['sourceconf']) && !empty($_POST['sourceconf'])) {
 	// tell worker to write new MPD config
 		if ($_SESSION['w_lock'] != 1 && $_SESSION['w_queue'] == '') {
@@ -153,26 +139,27 @@ if(isset($_POST['sourceconf']) && !empty($_POST['sourceconf'])) {
 		$_SESSION['notify']['msg'] = 'background worker is busy.';
 		session_write_close();
 		}
-}
+} */
 
 // wait for worker output if $_SESSION['w_active'] = 1
 waitWorker(5,'sources');
 
 // check integrity of /etc/network/interfaces
+/* rel 1.0 autoFS
 if(!hashCFG('check_source',$db)) {
 $_sourceconf = file_get_contents('/etc/auto.nas');
 // set manual config template
 $tpl = "source-manual.html";
 } else {
+*/
 $dbh = cfgdb_connect($db);
 $source = cfgdb_read('cfg_source',$dbh);
 $dbh = null;
 // set normal config template
 $tpl = "sources.html";
-}
+// } rel 1.0 autoFS
 // unlock session files
 playerSession('unlock',$db,'','');
-closeMpdSocket($mpd);
 foreach ($source as $mp) {
 if (wrk_checkStrSysfile('/proc/mounts',$mp['name']) ) {
 	$icon = "<i class='icon-ok green sx'></i>";
@@ -181,7 +168,6 @@ if (wrk_checkStrSysfile('/proc/mounts',$mp['name']) ) {
 	}
 $_mounts .= "<p><a href=\"sources.php?p=edit&id=".$mp['id']."\" class='btn btn-large btn-block'> ".$icon." NAS/".$mp['name']."&nbsp;&nbsp;&nbsp;&nbsp;//".$mp['address']."/".$mp['remotedir']." </a></p>";
 }
-
 ?>
 
 <?php
@@ -204,18 +190,20 @@ if (isset($_GET['p']) && !empty($_GET['p'])) {
 			$_password = $mount['password'];
 			$_rsize = $mount['rsize'];
 			$_wsize = $mount['wsize'];
-			// $_char_utf8 = $mount['char_utf8'];
-			// $_char_iso = $mount['char_iso'];
+			$_type = $mount['type'];
+			$_charset = $mount['charset'];
 			}
 		}
 	$_title = 'Edit network mount';
+	$_action = 'edit';
 	} else {
 	$_title = 'Add new network mount';
 	$_hide = 'hide';
+	$_action = 'add';
 	}
 	$tpl = 'source.html';
 } 
-
+debug($_POST);
 eval("echoTemplate(\"".getTemplate("templates/$tpl")."\");");
 ?>
 <!-- content -->
