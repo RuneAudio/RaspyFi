@@ -1202,6 +1202,10 @@ function wrk_sysEnvCheck($arch,$install) {
 	 }
 	 
 		if ($install == 1) {
+		 // remove autoFS for NAS mount
+		 sysCmd('cp /var/www/_OS_SETTINGS/etc/auto.master /etc/auto.master');
+		 sysCmd('rm /etc/auto.nas');
+		 sysCmd('service autofs restart');
 		 // /etc/php5/mods-available/apc.ini
 		 sysCmd('cp /var/www/_OS_SETTINGS/etc/php5/mods-available/apc.ini /etc/php5/mods-available/apc.ini');
 		 // /etc/php5/fpm/pool.d/ erase
