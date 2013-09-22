@@ -1,4 +1,4 @@
-<form class="form-horizontal" action="system.php" method="post">
+<form class="form-horizontal" action="settings.php" method="post">
 	<div id="poweroff-modal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="poweroff-modal-label" aria-hidden="true">
 		<div class="modal-header">
 			<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
