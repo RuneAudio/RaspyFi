@@ -22,8 +22,8 @@
  *	UI-design/JS code by: 	Andrea Coiutti (aka ACX)
  * PHP/JS code by:			Simone De Gregori (aka Orion)
  * 
- * file:							system.php
- * version:						1.0
+ * file:							settings.php
+ * version:						1.1
  *
  */
  
@@ -210,7 +210,7 @@ $_system_select['cmediafix1'] .= "<input type=\"radio\" name=\"cmediafix\" id=\"
 $_system_select['cmediafix0'] .= "<input type=\"radio\" name=\"cmediafix\" id=\"toggleOption2\" value=\"0\" ".(($_SESSION['cmediafix'] == 0) ? "checked=\"checked\"" : "").">\n";
 
 // set template
-$tpl = "system.html";
+$tpl = "settings.html";
 ?>
 
 <?php

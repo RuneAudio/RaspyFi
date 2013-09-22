@@ -23,7 +23,7 @@
  * PHP/JS code by:			Simone De Gregori (aka Orion)
  * 
  * file:							player_lib.php
- * version:						1.0
+ * version:						1.1
  *
  */
  
@@ -190,7 +190,7 @@ if (phpVer() == '5.3') {
 }
 
 function sysCmd($syscmd) {
-exec($syscmd, $output);
+exec($syscmd." 2>&1", $output);
 return $output;
 }
 
@@ -393,7 +393,7 @@ function cfgdb_read($table,$dbh,$param,$id) {
 	$querystr = 'SELECT value from '.$table.' WHERE param="'.$param.'"';
 	}
 //debug
-//echo "<br>".$querystr."<br>";
+error_log(">>>>> cfgdb_read(".$table.",dbh,".$param.",".$id.") >>>>> \n".$querystr, 0);
 $result = sdbquery($querystr,$dbh);
 return $result;
 }
@@ -417,11 +417,11 @@ switch ($table) {
 	break;
 	
 	case 'cfg_source':
-	$querystr = "UPDATE ".$table." SET name='".$value['name']."', type='".$value['type']."', address='".$value['address']."', remotedir='".$value['remotedir']."', username='".$value['username']."', password='".$value['password']."', charset='".$value['charset']."', rsize='".$value['rsize']."', wsize='".$value['wsize']."' where id=".$value['id'];
+	$querystr = "UPDATE ".$table." SET name='".$value['name']."', type='".$value['type']."', address='".$value['address']."', remotedir='".$value['remotedir']."', username='".$value['username']."', password='".$value['password']."', charset='".$value['charset']."', rsize='".$value['rsize']."', wsize='".$value['wsize']."', options='".$value['options']."', error='".$value['error']."' where id=".$value['id'];
 	break;
 }
 //debug
-//debug($querystr);
+error_log(">>>>> cfgdb_update(".$table.",dbh,".$key.",".$value.") >>>>> \n".$querystr, 0);
 	if (sdbquery($querystr,$dbh)) {
 	return true;
 	} else {
@@ -432,7 +432,7 @@ switch ($table) {
 function cfgdb_write($table,$dbh,$values) {
 $querystr = "INSERT INTO ".$table." VALUES (NULL, ".$values.")";
 //debug
-//debug($querystr);
+error_log(">>>>> cfgdb_write(".$table.",dbh,".$values.") >>>>> \n".$querystr, 0);
 	if (sdbquery($querystr,$dbh)) {
 	return true;
 	} else {
@@ -447,7 +447,7 @@ $querystr = "DELETE FROM ".$table;
 $querystr = "DELETE FROM ".$table." WHERE id=".$id;
 }
 //debug
-//debug($querystr);
+error_log(">>>>> cfgdb_delete(".$table.",dbh,".$id.") >>>>> \n".$querystr, 0);
 	if (sdbquery($querystr,$dbh)) {
 	return true;
 	} else {
@@ -867,7 +867,9 @@ return "job_".$jobID;
 }
 
 function wrk_checkStrSysfile($sysfile,$searchstr) {
-$file = file_get_contents($sysfile);
+$file = stripcslashes(file_get_contents($sysfile));
+// debug
+//error_log(">>>>> wrk_checkStrSysfile(".$sysfile.",".$searchstr.") >>>>> ",0);
 	if (strpos($file, $searchstr)) {
 	return true;
 	} else {
@@ -907,6 +909,7 @@ function wrk_mpdconf($outpath,$db) {
 	}
 
 // format audio input / output interfaces
+	$output .= "max_connections \"20\"\n";
 	$output .= "\n";
 	$output .= "decoder {\n";
 	$output .= "\t\tplugin \"ffmpeg\"\n";
@@ -935,6 +938,53 @@ function wrk_mpdconf($outpath,$db) {
 	fclose($fh);
 }
 
+function wrk_sourcemount($db,$action,$id) {
+	switch ($action) {
+		
+		case 'mount':
+			$dbh = cfgdb_connect($db);
+			$mp = cfgdb_read('cfg_source',$dbh,'',$id);
+			sysCmd("mkdir \"/mnt/NAS/".$mp[0]['name']."\"");
+			if ($mp[0]['type'] == 'cifs') {
+			// smb/cifs mount
+			$mountstr = "mount -t cifs \"//".$mp[0]['address']."/".$mp[0]['remotedir']."\" -o username=".$mp[0]['username'].",password=".$mp[0]['password'].",rsize=".$mp[0]['rsize'].",wsize=".$mp[0]['wsize'].",iocharset=".$mp[0]['charset'].",".$mp[0]['options']." \"/mnt/NAS/".$mp[0]['name']."\"";
+			} else {
+			// nfs mount
+			$mountstr = "mount -t nfs -o ".$mp[0]['options']." \"".$mp[0]['address'].":/".$mp[0]['remotedir']."\" \"/mnt/NAS/".$mp[0]['name']."\"";
+			}
+			// debug
+			error_log(">>>>> mount string >>>>> ".$mountstr,0);
+			$sysoutput = sysCmd($mountstr);
+			error_log(var_dump($sysoutput),0);
+			if (empty($sysoutput)) {
+				if (!empty($mp[0]['error'])) {
+				$mp[0]['error'] = '';
+				cfgdb_update('cfg_source',$dbh,'',$mp[0]);
+				}
+			$return = 1;
+			} else {
+			sysCmd("rmdir \"/mnt/NAS/".$mp[0]['name']."\"");
+			$mp[0]['error'] = implode("\n",$sysoutput);
+			cfgdb_update('cfg_source',$dbh,'',$mp[0]);
+			$return = 0;
+			}	
+		break;
+		
+		case 'mountall':
+		$dbh = cfgdb_connect($db);
+		$mounts = cfgdb_read('cfg_source',$dbh);
+		foreach ($mounts as $mp) {
+			if (!wrk_checkStrSysfile('/proc/mounts',$mp['name']) ) {
+			$return = wrk_sourcemount($db,'mount',$mp['id']);
+			}
+		}
+		$dbh = null;
+		break;
+		
+	}
+return $return;
+}
+
 function wrk_sourcecfg($db,$queueargs) {
 $action = $queueargs['mount']['action'];
 unset($queueargs['mount']['action']);
@@ -944,8 +994,8 @@ unset($queueargs['mount']['action']);
 		$dbh = cfgdb_connect($db);
 		$source = cfgdb_read('cfg_source',$dbh);
 			foreach ($source as $mp) {
-			sysCmd("umount -f /mnt/NAS/".$mp['name']);
-			sysCmd("rmdir /mnt/NAS/".$mp['name']);
+			sysCmd("umount -f \"/mnt/NAS/".$mp['name']."\"");
+			sysCmd("rmdir \"/mnt/NAS/".$mp['name']."\"");
 			}
 		if (cfgdb_delete('cfg_source',$dbh)) {
 		$return = 1;
@@ -961,81 +1011,49 @@ unset($queueargs['mount']['action']);
 		unset($queueargs['mount']['id']);
 		// format values string
 		foreach ($queueargs['mount'] as $key => $value) {
-			if ($key == 'wsize') {
-			$values .= "'".$value."'";
+			if ($key == 'error') {
+			$values .= "'".SQLite3::escapeString($value)."'";
+			error_log(">>>>> values on line 1014 >>>>> ".$values, 0);
 			} else {
-			$values .= "'".$value."',";
+			$values .= "'".SQLite3::escapeString($value)."',";
+			error_log(">>>>> values on line 1016 >>>>> ".$values, 0);
 			}
 		}
+		error_log(">>>>> values on line 1019 >>>>> ".$values, 0);
 		// write new entry
 		cfgdb_write('cfg_source',$dbh,$values);
 		$newmountID = $dbh->lastInsertId();
-		$mp = cfgdb_read('cfg_source',$dbh,'',$newmountID);
-		print_r($mp);
-		sysCmd("mkdir /mnt/NAS/".$mp[0]['name']."");
-		// smb/cifs mount
-		if ($queueargs['mount']['type'] == 'cifs') {
-			if (sysCmd("mount -t cifs //".$mp[0]['address']."/".$mp[0]['remotedir']." -o username=".$mp[0]['username'].",password=".$mp[0]['password'].",rsize=".$mp[0]['rsize'].",wsize=".$mp[0]['wsize'].",iocharset=".$mp[0]['charset'].",cache=strict,file_mode=0777,dir_mode=0777,noatime,ro /mnt/NAS/".$mp[0]['name'])) {
-			$return = 1;
-			} else {
-			$return = 0;
-			}
-		}
-		// nfs mount
-		if ($queueargs['mount']['type'] == 'nfs') {
-			if (sysCmd("mount -t nfs -o nfsvers=3,ro,noatime ".$mp[0]['address'].":/".$mp[0]['remotedir']." /mnt/NAS/".$mp[0]['name'])) {
-			$return = 1;
-			} else {
-			$return = 0;
-			}
-		}
 		$dbh = null;
+		if (wrk_sourcemount($db,'mount',$newmountID)) {
+		$return = 1;
+		} else {
+		$return = 0;
+		}
 		break;
 		
 		case 'edit':
 		$dbh = cfgdb_connect($db);
-		cfgdb_update('cfg_source',$dbh,'',$queueargs['mount']);	
 		$mp = cfgdb_read('cfg_source',$dbh,'',$queueargs['mount']['id']);
-		if ($mp['name'] != $queueargs['mount']['name']) {
-		sysCmd("umount -f /mnt/NAS/".$mp['name']);
-		sysCmd("mkdir /mnt/NAS/".$queueargs['mount']['name']."");
-			if ($queueargs['mount']['type'] == 'cifs') {
-				if (sysCmd("mount -t cifs //".$mp['address']."/".$mp['remotedir']." -o username=".$mp['username'].",password=".$mp['password'].",rsize=".$mp['rsize'].",wsize=".$mp['wsize'].",iocharset=".$mp['charset'].",cache=strict,file_mode=0777,dir_mode=0777,noatime,ro /mnt/NAS/".$mp['name'])) {
-				$return = 1;
-				} else {
-				$return = 0;
-				}
+		cfgdb_update('cfg_source',$dbh,'',$queueargs['mount']);	
+		sysCmd("umount -f \"/mnt/NAS/".$mp[0]['name']."\"");
+			if ($mp[0]['name'] != $queueargs['mount']['name']) {
+			sysCmd("rmdir \"/mnt/NAS/".$mp[0]['name']."\"");
+			sysCmd("mkdir \"/mnt/NAS/".$queueargs['mount']['name']."\"");
 			}
-			if ($queueargs['mount']['type'] == 'nfs') {
-				if (sysCmd("mount -t nfs -o nfsvers=3,ro,noatime ".$mp[0]['address'].":/".$mp[0]['remotedir']." /mnt/NAS/".$mp[0]['name'])) {
-				$return = 1;
-				} else {
-				$return = 0;
-				}
-			}
+		if (wrk_sourcemount($db,'mount',$queueargs['mount']['id'])) {
+		$return = 1;
 		} else {
-			if ($queueargs['mount']['type'] == 'cifs') {
-				if (sysCmd("mount -t cifs //".$mp['address']."/".$mp['remotedir']." -o remount,username=".$mp['username'].",password=".$mp['password'].",rsize=".$mp['rsize'].",wsize=".$mp['wsize'].",iocharset=".$mp['charset'].",cache=strict,file_mode=0777,dir_mode=0777,noatime,ro /mnt/NAS/".$mp['name'])) {
-				$return = 1;
-				} else {
-				$return = 0;
-				}
-			}
-			if ($queueargs['mount']['type'] == 'nfs') {
-				if (sysCmd("mount -t nfs -o remount,nfsvers=3,ro,noatime ".$mp[0]['address'].":/".$mp[0]['remotedir']." /mnt/NAS/".$mp[0]['name'])) {
-				$return = 1;
-				} else {
-				$return = 0;
-				}
-			}
+		$return = 0;
 		}
+		error_log(">>>>> wrk_sourcecfg(edit) exit status = >>>>> ".$return, 0);
 		$dbh = null;
 		break;
 		
 		case 'delete':
-		sysCmd('umount -f /mnt/NAS/'.$queueargs['mount']['name']);
-		sysCmd('rmdir /mnt/NAS/'.$queueargs['mount']['name']);
 		$dbh = cfgdb_connect($db);
+		$mp = cfgdb_read('cfg_source',$dbh,'',$queueargs['mount']['id']);
+		sysCmd("umount -f \"/mnt/NAS/".$mp[0]['name']."\"");
+		sysCmd("rmdir \"/mnt/NAS/".$mp[0]['name']."\"");
 		if (cfgdb_delete('cfg_source',$dbh,$queueargs['mount']['id'])) {
 		$return = 1;
 		} else {

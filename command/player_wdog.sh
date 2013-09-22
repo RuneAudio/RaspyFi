@@ -40,7 +40,7 @@ fi
 
 while true 
 do
- 	if (($numproc > 9)); then 
+ 	if (($numproc > 15)); then 
 		killall player_wrk.php
 		rm $WRKPIDFILE > /dev/null 2>&1
 		service php5-fpm restart > /dev/null 2>&1

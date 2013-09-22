@@ -72,7 +72,7 @@
 			<li class="<?php ami('sources'); ?>"><a href="sources.php"><i class="icon-folder-open sx"></i> Database</a></li>
 			<li class="<?php ami('mpd-config'); ?>"><a href="mpd-config.php"><i class="icon-cogs sx"></i> MPD</a></li>
 			<li class="<?php ami('net-config'); ?>"><a href="net-config.php"><i class="icon-sitemap sx"></i> Network</a></li>
-			<li class="<?php ami('system'); ?>"><a href="system.php"><i class="icon-wrench sx"></i> System</a></li>
+			<li class="<?php ami('settings'); ?>"><a href="settings.php"><i class="icon-wrench sx"></i> Settings</a></li>
 			<li class="<?php ami('help'); ?>"><a href="help.php"><i class="icon-question-sign sx"></i> Help</a></li>
 			<li class="<?php ami('credits'); ?>"><a href="credits.php"><i class="icon-trophy sx"></i> Credits</a></li>
 			<li><a href="#poweroff-modal" data-toggle="modal"><i class="icon-power-off sx"></i> Turn off</a></li>

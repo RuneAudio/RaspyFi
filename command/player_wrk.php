@@ -32,7 +32,6 @@
 include('/var/www/inc/player_lib.php');
 ini_set('display_errors', '1');
 ini_set('error_log','/var/log/php_errors.log');
-// $mpd = openMpdSocket('localhost', 6600) ;
 $db = 'sqlite:/var/www/db/player.db';
 
 // --- DEMONIZE ---
@@ -70,9 +69,9 @@ $db = 'sqlite:/var/www/db/player.db';
 	pcntl_signal(SIGTTOU, SIG_IGN);
 	pcntl_signal(SIGTTIN, SIG_IGN);
 	pcntl_signal(SIGHUP, SIG_IGN);
-// --- DEMONIZE ---
+// --- DEMONIZE --- //
 
-// initialize ENV
+// --- INITIALIZE ENVIRONMENT --- //
 // change /run and session files for correct session file locking
 sysCmd('chmod 777 /run');
 
@@ -88,86 +87,106 @@ playerSession('open',$db,'','');
 // reset session file permissions
 sysCmd('chmod 777 /run/sess*');
 
+// mount all sources
+wrk_sourcemount($db,'mountall');
+
+// start MPD daemon
+sysCmd("service mpd start");
+
 // check Architecture
 $arch = wrk_getHwPlatform();
 if ($arch != $_SESSION['hwplatformid']) {
 // reset playerID if architectureID not match. This condition "fire" another first-install process
 playerSession('write',$db,'playerid','');
 }
+// --- INITIALIZE ENVIRONMENT --- //
 
-// player first installation process
-if (isset($_SESSION['playerid']) && $_SESSION['playerid'] == '') {
-// register HW architectureID and playerID
-wrk_setHwPlatform($db);
-// destroy actual session
-playerSession('destroy',$db,'','');
-// reload session data
-playerSession('open',$db,'','');
-// reset ENV parameters
-wrk_sysChmod();
+// --- PLAYER FIRST INSTALLATION PROCESS --- //
+	if (isset($_SESSION['playerid']) && $_SESSION['playerid'] == '') {
+	// register HW architectureID and playerID
+	wrk_setHwPlatform($db);
+	// destroy actual session
+	playerSession('destroy',$db,'','');
+	// reload session data
+	playerSession('open',$db,'','');
+	// reset ENV parameters
+	wrk_sysChmod();
 
-// reset netconf to defaults
-$value = array('ssid' => '', 'encryption' => '', 'password' => '');
-$dbh = cfgdb_connect($db);
-cfgdb_update('cfg_wifisec',$dbh,'',$value);
-$file = '/etc/network/interfaces';
-$fp = fopen($file, 'w');
-$netconf = "auto lo\n";
-$netconf .= "iface lo inet loopback\n";
-$netconf .= "\n";
-$netconf .= "auto eth0\n";
-$netconf .= "iface eth0 inet dhcp\n";
-$netconf .= "\n";
-$netconf .= "auto wlan0\n";
-$netconf .= "iface wlan0 inet dhcp\n";
-fwrite($fp, $netconf);
-fclose($fp);
-// update hash
-$hash = md5_file('/etc/network/interfaces');
-playerSession('write',$db,'netconfhash',$hash);
-// restart wlan0 interface
-	if (strpos($netconf, 'wlan0') != false) {
-	$cmd = "ip addr list wlan0 |grep \"inet \" |cut -d' ' -f6|cut -d/ -f1";
-	$ip_wlan0 = sysCmd($cmd);
-		if (!empty($ip_wlan0[0])) {
-		$_SESSION['netconf']['wlan0']['ip'] = $ip_wlan0[0];
-		} else {
-			if (wrk_checkStrSysfile('/proc/net/wireless','wlan0')) {
-			$_SESSION['netconf']['wlan0']['ip'] = '--- NO IP ASSIGNED ---';
+	// reset netconf to defaults
+	$value = array('ssid' => '', 'encryption' => '', 'password' => '');
+	$dbh = cfgdb_connect($db);
+	cfgdb_update('cfg_wifisec',$dbh,'',$value);
+	$file = '/etc/network/interfaces';
+	$fp = fopen($file, 'w');
+	$netconf = "auto lo\n";
+	$netconf .= "iface lo inet loopback\n";
+	$netconf .= "\n";
+	$netconf .= "auto eth0\n";
+	$netconf .= "iface eth0 inet dhcp\n";
+	$netconf .= "\n";
+	$netconf .= "auto wlan0\n";
+	$netconf .= "iface wlan0 inet dhcp\n";
+	fwrite($fp, $netconf);
+	fclose($fp);
+	// update hash
+	$hash = md5_file('/etc/network/interfaces');
+	playerSession('write',$db,'netconfhash',$hash);
+	// restart wlan0 interface
+		if (strpos($netconf, 'wlan0') != false) {
+		$cmd = "ip addr list wlan0 |grep \"inet \" |cut -d' ' -f6|cut -d/ -f1";
+		$ip_wlan0 = sysCmd($cmd);
+			if (!empty($ip_wlan0[0])) {
+			$_SESSION['netconf']['wlan0']['ip'] = $ip_wlan0[0];
 			} else {
-			$_SESSION['netconf']['wlan0']['ip'] = '--- NO INTERFACE PRESENT ---';
+				if (wrk_checkStrSysfile('/proc/net/wireless','wlan0')) {
+				$_SESSION['netconf']['wlan0']['ip'] = '--- NO IP ASSIGNED ---';
+				} else {
+				$_SESSION['netconf']['wlan0']['ip'] = '--- NO INTERFACE PRESENT ---';
+				}
 			}
 		}
+	sysCmd('service networking restart');
+
+	// reset sourcecfg to defaults
+	wrk_sourcecfg($db,'reset');
+	sendMpdCommand($mpd,'update');
+
+	// reset mpdconf to defaults
+	$mpdconfdefault = cfgdb_read('',$dbh,'mpdconfdefault');
+	foreach($mpdconfdefault as $element) {
+		cfgdb_update('cfg_mpd',$dbh,$element['param'],$element['value_default']);
 	}
-sysCmd('service networking restart');
+		// tell worker to write new MPD config
+	wrk_mpdconf('/etc',$db);
+		// update hash
+	$hash = md5_file('/etc/mpd.conf');
+	playerSession('write',$db,'mpdconfhash',$hash);
+	sysCmd('service mpd restart');
+	$dbh = null;
 
-// reset sourcecfg to defaults
-wrk_sourcecfg($db,'reset');
-sendMpdCommand($mpd,'update');
+	// disable minidlna / samba / MPD startup
+	sysCmd("update-rc.d -f minidlna remove");
+	sysCmd("update-rc.d -f ntp remove");
+	sysCmd("update-rc.d -f smbd remove");
+	sysCmd("update-rc.d -f nmbd remove");
+	sysCmd("update-rc.d -f mpd remove");
+	sysCmd("echo 'manual' > /etc/init/minidlna.override");
+	sysCmd("echo 'manual' > /etc/init/ntp.override");
+	sysCmd("echo 'manual' > /etc/init/smbd.override");
+	sysCmd("echo 'manual' > /etc/init/nmbd.override");
+	sysCmd("echo 'manual' > /etc/init/mpd.override");
+	// system ENV files check and replace
+	wrk_sysEnvCheck($arch,1);
+	// stop services
+	sysCmd('service minidlna stop');
+	sysCmd('service minidlna ntp');
+	sysCmd('service samba stop');
+	sysCmd('service mpd stop');
+	sysCmd('/usr/sbin/smbd -D --configfile=/var/www/_OS_SETTINGS/etc/samba/smb.conf');
+	sysCmd('/usr/sbin/nmbd -D --configfile=/var/www/_OS_SETTINGS/etc/samba/smb.conf');
+// --- PLAYER FIRST INSTALLATION PROCESS --- //
 
-// reset mpdconf to defaults
-$mpdconfdefault = cfgdb_read('',$dbh,'mpdconfdefault');
-foreach($mpdconfdefault as $element) {
-	cfgdb_update('cfg_mpd',$dbh,$element['param'],$element['value_default']);
-}
-	// tell worker to write new MPD config
-wrk_mpdconf('/etc',$db);
-	// update hash
-$hash = md5_file('/etc/mpd.conf');
-playerSession('write',$db,'mpdconfhash',$hash);
-sysCmd('service mpd restart');
-$dbh = null;
-
-// disable minidlna / samba startup
-sysCmd("echo 'manual' > /etc/init/minidlna.override");
-sysCmd("echo 'manual' > /etc/init/smbd.override");
-sysCmd("echo 'manual' > /etc/init/nmbd.override");
-// system ENV files check and replace
-wrk_sysEnvCheck($arch,1);
-// stop samba
-sysCmd('service samba stop');
-sysCmd('/usr/sbin/smbd -D --configfile=/var/www/_OS_SETTINGS/etc/samba/smb.conf');
-sysCmd('/usr/sbin/nmbd -D --configfile=/var/www/_OS_SETTINGS/etc/samba/smb.conf');
+// --- NORMAL STARTUP --- //
 } else {
 	// check ENV files
 	if ($arch != '--') {
@@ -179,18 +198,16 @@ sysCmd('/usr/sbin/nmbd -D --configfile=/var/www/_OS_SETTINGS/etc/samba/smb.conf'
 }
 
 // inizialize worker session vars
-if (!isset($_SESSION['w_queue']) OR $_SESSION['w_queue'] == 'workerrestart') { $_SESSION['w_queue'] = ''; }
+//if (!isset($_SESSION['w_queue']) OR $_SESSION['w_queue'] == 'workerrestart') { $_SESSION['w_queue'] = ''; }
+$_SESSION['w_queue'] = '';
 $_SESSION['w_queueargs'] = '';
 $_SESSION['w_lock'] = 0;
-if (!isset($_SESSION['w_active'])) { $_SESSION['w_active'] = 0; }
+//if (!isset($_SESSION['w_active'])) { $_SESSION['w_active'] = 0; }
+$_SESSION['w_active'] = 0;
 $_SESSION['w_jobID'] = '';
 // inizialize debug
 $_SESSION['debug'] = 0;
 $_SESSION['debugdata'] = '';
-// devel only
-// $_SESSION['w_queue'] = '';
-// $_SESSION['w_active'] = 0;
-
 
 // initialize OrionProfile
 if ($_SESSION['dev'] == 0) {
@@ -258,10 +275,13 @@ playerSession('unlock',$db,'','');
 
 // Cmediafix startup check
 if (isset($_SESSION['cmediafix']) && $_SESSION['cmediafix'] == 1) {
+	$mpd = openMpdSocket('localhost', 6600) ;
 	sendMpdCommand($mpd,'cmediafix');
+	closeMpdSocket($mpd);
 } 
+// --- NORMAL STARTUP --- //
 
- // endless loop
+// --- WORKER MAIN LOOP --- //
 while (1) {
 sleep(7);
 session_start();
@@ -438,4 +458,5 @@ session_start();
 	}
 session_write_close();
 }
+// --- WORKER MAIN LOOP --- //
 ?>

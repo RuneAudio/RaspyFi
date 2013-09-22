@@ -23,7 +23,7 @@
  * PHP/JS code by:			Simone De Gregori (aka Orion)
  * 
  * file:							sources.php
- * version:						1.0
+ * version:						1.1
  *
  */
  
@@ -79,12 +79,20 @@ $_POST['mount']['remotedir'] = str_replace('\\', '/', $_POST['mount']['remotedir
 	if ($_POST['mount']['rsize'] == '') {
 	$_POST['mount']['rsize'] = 2048;
 	}
+
+	if ($_POST['mount']['options'] == '') {
+		if ($_POST['mount']['type'] == 'cifs') {
+		$_POST['mount']['options'] = "cache=strict,ro,noatime";
+		} else {
+		$_POST['mount']['options'] = "nfsvers=3,ro,noatime";
+		}
+	}
 // activate worker
 if (isset($_POST['delete']) && $_POST['delete'] == 1) {
 // delete an existing entry
 		if ($_SESSION['w_lock'] != 1 && $_SESSION['w_queue'] == '') {
 		session_start();
-		$_SESSION['w_queue'] = "sourcecfg";
+		$_SESSION['w_queue'] = 'sourcecfg';
 		$_POST['mount']['action'] = 'delete';
 		$_SESSION['w_queueargs'] = $_POST;
 		$_SESSION['w_active'] = 1;
@@ -103,7 +111,7 @@ if (isset($_POST['delete']) && $_POST['delete'] == 1) {
 	
 		if ($_SESSION['w_lock'] != 1 && $_SESSION['w_queue'] == '') {
 		session_start();
-		$_SESSION['w_queue'] = "sourcecfg";
+		$_SESSION['w_queue'] = 'sourcecfg';
 		$_SESSION['w_queueargs']  = $_POST;
 		$_SESSION['w_active'] = 1;
 		// set UI notify
@@ -144,20 +152,11 @@ if(isset($_POST['sourceconf']) && !empty($_POST['sourceconf'])) {
 // wait for worker output if $_SESSION['w_active'] = 1
 waitWorker(5,'sources');
 
-// check integrity of /etc/network/interfaces
-/* rel 1.0 autoFS
-if(!hashCFG('check_source',$db)) {
-$_sourceconf = file_get_contents('/etc/auto.nas');
-// set manual config template
-$tpl = "source-manual.html";
-} else {
-*/
 $dbh = cfgdb_connect($db);
 $source = cfgdb_read('cfg_source',$dbh);
 $dbh = null;
 // set normal config template
 $tpl = "sources.html";
-// } rel 1.0 autoFS
 // unlock session files
 playerSession('unlock',$db,'','');
 foreach ($source as $mp) {
@@ -190,8 +189,15 @@ if (isset($_GET['p']) && !empty($_GET['p'])) {
 			$_password = $mount['password'];
 			$_rsize = $mount['rsize'];
 			$_wsize = $mount['wsize'];
-			$_type = $mount['type'];
+			// mount type select
+			$_source_select['type'] .= "<option value=\"cifs\" ".(($mount['type'] == 'cifs') ? "selected" : "")." >SMB/CIFS</option>\n";	
+			$_source_select['type'] .= "<option value=\"nfs\" ".(($mount['type'] == 'nfs') ? "selected" : "")." >NFS</option>\n";	
 			$_charset = $mount['charset'];
+			$_options = $mount['options'];
+			$_error = $mount['error'];
+				if (empty($_error)) {
+				$_hideerror = 'hide';
+				}
 			}
 		}
 	$_title = 'Edit network mount';
@@ -199,7 +205,10 @@ if (isset($_GET['p']) && !empty($_GET['p'])) {
 	} else {
 	$_title = 'Add new network mount';
 	$_hide = 'hide';
+	$_hideerror = 'hide';
 	$_action = 'add';
+	$_source_select['type'] .= "<option value=\"cifs\">SMB/CIFS</option>\n";	
+	$_source_select['type'] .= "<option value=\"nfs\">NFS</option>\n";	
 	}
 	$tpl = 'source.html';
 } 
